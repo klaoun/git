@@ -210,6 +210,8 @@ static void parse_cmd_update(struct ref_transaction *transaction,
 			     const char *next, const char *end)
 {
 	struct strbuf err = STRBUF_INIT;
+	struct strbuf new_target = STRBUF_INIT;
+	struct strbuf old_target = STRBUF_INIT;
 	char *refname;
 	struct object_id new_oid, old_oid;
 	int have_old;
@@ -218,19 +220,24 @@ static void parse_cmd_update(struct ref_transaction *transaction,
 	if (!refname)
 		die("update: missing <ref>");
 
-	if (parse_next_arg(&next, end, &new_oid, NULL,
-			   "update", refname, PARSE_SHA1_ALLOW_EMPTY))
+	if (parse_next_arg(&next, end, &new_oid,
+			   &new_target, "update", refname,
+			   PARSE_SHA1_ALLOW_EMPTY | PARSE_REFNAME_TARGETS))
 		die("update %s: missing <new-oid>", refname);
 
-	have_old = !parse_next_arg(&next, end, &old_oid, NULL,
-				   "update", refname, PARSE_SHA1_OLD);
+	have_old = !parse_next_arg(&next, end, &old_oid,
+				   &old_target, "update", refname,
+				   PARSE_SHA1_OLD | PARSE_REFNAME_TARGETS);
+	have_old = have_old & !old_target.len;
 
 	if (*next != line_termination)
 		die("update %s: extra input: %s", refname, next);
 
 	if (ref_transaction_update(transaction, refname,
-				   &new_oid, have_old ? &old_oid : NULL,
-				   NULL, NULL,
+				   new_target.len ? NULL : &new_oid,
+				   have_old ? &old_oid : NULL,
+				   new_target.len ? new_target.buf : NULL,
+				   old_target.len ? old_target.buf : NULL,
 				   update_flags | create_reflog_flag,
 				   msg, &err))
 		die("%s", err.buf);
@@ -238,6 +245,8 @@ static void parse_cmd_update(struct ref_transaction *transaction,
 	update_flags = default_flags;
 	free(refname);
 	strbuf_release(&err);
+	strbuf_release(&old_target);
+	strbuf_release(&new_target);
 }
 
 static void parse_cmd_create(struct ref_transaction *transaction,
