@@ -89,16 +89,24 @@ static char *parse_refname(const char **next)
 #define PARSE_SHA1_ALLOW_EMPTY 0x02
 
 /*
+ * Parse refname targets using the ref:<ref_target> format.
+ */
+#define PARSE_REFNAME_TARGETS 0x04
+
+/*
  * Parse an argument separator followed by the next argument, if any.
  * If there is an argument, convert it to a SHA-1, write it to sha1,
  * set *next to point at the character terminating the argument, and
  * return 0.  If there is no argument at all (not even the empty
  * string), return 1 and leave *next unchanged.  If the value is
  * provided but cannot be converted to a SHA-1, die.  flags can
- * include PARSE_SHA1_OLD and/or PARSE_SHA1_ALLOW_EMPTY.
+ * include PARSE_SHA1_OLD and/or PARSE_SHA1_ALLOW_EMPTY and/or
+ * PARSE_REFNAME_TARGETS. When PARSE_REFNAME_TARGETS is set, parse
+ * the argument as `ref:<refname>` and store the refname into
+ * the target strbuf.
  */
-static int parse_next_oid(const char **next, const char *end,
-			  struct object_id *oid,
+static int parse_next_arg(const char **next, const char *end,
+			  struct object_id *oid, struct strbuf *target,
 			  const char *command, const char *refname,
 			  int flags)
 {
@@ -118,8 +126,17 @@ static int parse_next_oid(const char **next, const char *end,
 		(*next)++;
 		*next = parse_arg(*next, &arg);
 		if (arg.len) {
-			if (repo_get_oid(the_repository, arg.buf, oid))
-				goto invalid;
+			if (repo_get_oid(the_repository, arg.buf, oid)) {
+				const char *value;
+				if (flags & PARSE_REFNAME_TARGETS &&
+				    skip_prefix(arg.buf, "ref:", &value)) {
+					if (check_refname_format(value, REFNAME_ALLOW_ONELEVEL))
+						die("invalid ref format: %s", value);
+					strbuf_addstr(target, value);
+				} else {
+					goto invalid;
+				}
+			}
 		} else {
 			/* Without -z, an empty value means all zeros: */
 			oidclr(oid);
@@ -136,8 +153,17 @@ static int parse_next_oid(const char **next, const char *end,
 		*next += arg.len;
 
 		if (arg.len) {
-			if (repo_get_oid(the_repository, arg.buf, oid))
-				goto invalid;
+			if (repo_get_oid(the_repository, arg.buf, oid)) {
+				const char *value;
+				if (flags & PARSE_REFNAME_TARGETS &&
+				    skip_prefix(arg.buf, "ref:", &value)) {
+					if (check_refname_format(value, REFNAME_ALLOW_ONELEVEL))
+						die("invalid ref format: %s", value);
+					strbuf_addstr(target, value);
+				} else {
+					goto invalid;
+				}
+			}
 		} else if (flags & PARSE_SHA1_ALLOW_EMPTY) {
 			/* With -z, treat an empty value as all zeros: */
 			warning("%s %s: missing <new-oid>, treating as zero",
@@ -192,12 +218,12 @@ static void parse_cmd_update(struct ref_transaction *transaction,
 	if (!refname)
 		die("update: missing <ref>");
 
-	if (parse_next_oid(&next, end, &new_oid, "update", refname,
-			   PARSE_SHA1_ALLOW_EMPTY))
+	if (parse_next_arg(&next, end, &new_oid, NULL,
+			   "update", refname, PARSE_SHA1_ALLOW_EMPTY))
 		die("update %s: missing <new-oid>", refname);
 
-	have_old = !parse_next_oid(&next, end, &old_oid, "update", refname,
-				   PARSE_SHA1_OLD);
+	have_old = !parse_next_arg(&next, end, &old_oid, NULL,
+				   "update", refname, PARSE_SHA1_OLD);
 
 	if (*next != line_termination)
 		die("update %s: extra input: %s", refname, next);
@@ -225,7 +251,7 @@ static void parse_cmd_create(struct ref_transaction *transaction,
 	if (!refname)
 		die("create: missing <ref>");
 
-	if (parse_next_oid(&next, end, &new_oid, "create", refname, 0))
+	if (parse_next_arg(&next, end, &new_oid, NULL, "create", refname, 0))
 		die("create %s: missing <new-oid>", refname);
 
 	if (is_null_oid(&new_oid))
@@ -256,8 +282,8 @@ static void parse_cmd_delete(struct ref_transaction *transaction,
 	if (!refname)
 		die("delete: missing <ref>");
 
-	if (parse_next_oid(&next, end, &old_oid, "delete", refname,
-			   PARSE_SHA1_OLD)) {
+	if (parse_next_arg(&next, end, &old_oid, NULL,
+			   "delete", refname, PARSE_SHA1_OLD)) {
 		have_old = 0;
 	} else {
 		if (is_null_oid(&old_oid))
@@ -289,8 +315,8 @@ static void parse_cmd_verify(struct ref_transaction *transaction,
 	if (!refname)
 		die("verify: missing <ref>");
 
-	if (parse_next_oid(&next, end, &old_oid, "verify", refname,
-			   PARSE_SHA1_OLD))
+	if (parse_next_arg(&next, end, &old_oid, NULL,
+			   "verify", refname, PARSE_SHA1_OLD))
 		oidclr(&old_oid);
 
 	if (*next != line_termination)
