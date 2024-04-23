@@ -274,6 +274,7 @@ static void parse_cmd_delete(struct ref_transaction *transaction,
 			     const char *next, const char *end)
 {
 	struct strbuf err = STRBUF_INIT;
+	struct strbuf old_target = STRBUF_INIT;
 	char *refname;
 	struct object_id old_oid;
 	int have_old;
@@ -282,26 +283,33 @@ static void parse_cmd_delete(struct ref_transaction *transaction,
 	if (!refname)
 		die("delete: missing <ref>");
 
-	if (parse_next_arg(&next, end, &old_oid, NULL,
-			   "delete", refname, PARSE_SHA1_OLD)) {
+	if (parse_next_arg(&next, end, &old_oid, &old_target,
+			   "delete", refname, PARSE_SHA1_OLD |
+			   PARSE_REFNAME_TARGETS)) {
 		have_old = 0;
 	} else {
-		if (is_null_oid(&old_oid))
+		if (!old_target.len && is_null_oid(&old_oid))
 			die("delete %s: zero <old-oid>", refname);
-		have_old = 1;
+		have_old = 1 && !old_target.len;
 	}
+
+	if (old_target.len && !(update_flags & REF_NO_DEREF))
+		die("delete %s: cannot operate on symrefs in deref mode", refname);
 
 	if (*next != line_termination)
 		die("delete %s: extra input: %s", refname, next);
 
 	if (ref_transaction_delete(transaction, refname,
 				   have_old ? &old_oid : NULL,
-				   update_flags, msg, &err))
+				   update_flags,
+				   old_target.len ? old_target.buf : NULL,
+				   msg, &err))
 		die("%s", err.buf);
 
 	update_flags = default_flags;
 	free(refname);
 	strbuf_release(&err);
+	strbuf_release(&old_target);
 }
 
 static void parse_cmd_verify(struct ref_transaction *transaction,

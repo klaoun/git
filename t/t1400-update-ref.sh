@@ -1714,6 +1714,50 @@ do
 		test_cmp expect actual
 	'
 
+	test_expect_success "stdin ${type} delete symref fails without --no-deref" '
+		git symbolic-ref refs/heads/symref $a &&
+		create_stdin_buf ${type} "delete refs/heads/symref" "ref:$a" &&
+		test_must_fail git update-ref --stdin ${type} <stdin 2>err &&
+		grep "fatal: delete refs/heads/symref: cannot operate on symrefs in deref mode" err
+	'
+
+	test_expect_success "stdin ${type} delete symref fails with no ref" '
+		create_stdin_buf ${type} "delete " &&
+		test_must_fail git update-ref --stdin ${type} --no-deref <stdin 2>err &&
+		grep "fatal: delete: missing <ref>" err
+	'
+
+	test_expect_success "stdin ${type} delete symref fails with too many arguments" '
+		create_stdin_buf ${type} "delete refs/heads/symref" "ref:$a" "ref:$a" &&
+		test_must_fail git update-ref --stdin ${type} --no-deref <stdin 2>err &&
+		if test "$type" = "-z"
+		then
+			grep "fatal: unknown command: ref:$a" err
+		else
+			grep "fatal: delete refs/heads/symref: extra input:  ref:$a" err
+		fi
+	'
+
+	test_expect_success "stdin ${type} delete symref fails with wrong old value" '
+		create_stdin_buf ${type} "delete refs/heads/symref" "ref:$m" &&
+		test_must_fail git update-ref --stdin ${type} --no-deref <stdin 2>err &&
+		if test_have_prereq REFTABLE
+		then
+			grep "fatal: verifying symref target: ${SQ}refs/heads/symref${SQ}: is at $a but expected refs/heads/main" err
+		else
+			grep "fatal: cannot lock ref ${SQ}refs/heads/symref${SQ}" err
+		fi &&
+		git symbolic-ref refs/heads/symref >expect &&
+		echo $a >actual &&
+		test_cmp expect actual
+	'
+
+	test_expect_success "stdin ${type} delete symref works with right old value" '
+		create_stdin_buf ${type} "delete refs/heads/symref" "ref:$a" &&
+		git update-ref --stdin ${type} --no-deref <stdin &&
+		test_must_fail git rev-parse --verify -q $b
+	'
+
 done
 
 test_done
