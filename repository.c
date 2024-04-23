@@ -35,8 +35,6 @@ void initialize_the_repository(void)
 	the_repo.parsed_objects = parsed_object_pool_new();
 
 	index_state_init(&the_index, the_repository);
-
-	repo_set_hash_algo(&the_repo, GIT_HASH_SHA1);
 }
 
 static void expand_base_dir(char **out, const char *in,
