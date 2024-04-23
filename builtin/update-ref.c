@@ -308,6 +308,7 @@ static void parse_cmd_verify(struct ref_transaction *transaction,
 			     const char *next, const char *end)
 {
 	struct strbuf err = STRBUF_INIT;
+	struct strbuf old_target = STRBUF_INIT;
 	char *refname;
 	struct object_id old_oid;
 
@@ -315,20 +316,27 @@ static void parse_cmd_verify(struct ref_transaction *transaction,
 	if (!refname)
 		die("verify: missing <ref>");
 
-	if (parse_next_arg(&next, end, &old_oid, NULL,
-			   "verify", refname, PARSE_SHA1_OLD))
+	if (parse_next_arg(&next, end, &old_oid, &old_target,
+			   "verify", refname,
+			   PARSE_SHA1_OLD | PARSE_REFNAME_TARGETS))
 		oidclr(&old_oid);
+
+	if (old_target.len && !(update_flags & REF_NO_DEREF))
+		die("verify %s: cannot operate on symrefs in deref mode", refname);
 
 	if (*next != line_termination)
 		die("verify %s: extra input: %s", refname, next);
 
-	if (ref_transaction_verify(transaction, refname, &old_oid,
+	if (ref_transaction_verify(transaction, refname,
+				   old_target.len ? NULL : &old_oid,
+				   old_target.len ? old_target.buf : NULL,
 				   update_flags, &err))
 		die("%s", err.buf);
 
 	update_flags = default_flags;
 	free(refname);
 	strbuf_release(&err);
+	strbuf_release(&old_target);
 }
 
 static void report_ok(const char *command)

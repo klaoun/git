@@ -64,7 +64,7 @@ performs all modifications together.  Specify commands of the form:
 	update SP <ref> SP <new-oid> [SP <old-oid>] LF
 	create SP <ref> SP <new-oid> LF
 	delete SP <ref> [SP <old-oid>] LF
-	verify SP <ref> [SP <old-oid>] LF
+	verify SP <ref> [SP (<old-oid> | ref:<old-target>)] LF
 	option SP <opt> LF
 	start LF
 	prepare LF
@@ -85,7 +85,7 @@ quoting:
 	update SP <ref> NUL <new-oid> NUL [<old-oid>] NUL
 	create SP <ref> NUL <new-oid> NUL
 	delete SP <ref> NUL [<old-oid>] NUL
-	verify SP <ref> NUL [<old-oid>] NUL
+	verify SP <ref> NUL [(<old-oid> | ref:<old-target>)] NUL
 	option SP <opt> NUL
 	start NUL
 	prepare NUL
@@ -94,6 +94,12 @@ quoting:
 
 In this format, use 40 "0" to specify a zero value, and use the empty
 string to specify a missing value.
+
+For commands which support it, substituting the <old-oid> value with
+ref:<old-target> will ensure that the <ref> targets the specified
+old-target before the update.  Similarly, substituting the <new-oid>
+with ref:<new-target> will ensure that the <ref> is a symbolic ref
+targeting the new-target after the update.
 
 In either format, values can be specified in any form that Git
 recognizes as an object name.  Commands in any other format or a
@@ -115,7 +121,8 @@ delete::
 
 verify::
 	Verify <ref> against <old-oid> but do not change it.  If
-	<old-oid> is zero or missing, the ref must not exist.
+	<old-oid> is zero or missing, the ref must not exist. For
+	verifying symbolic refs, provide ref:<old-target>.
 
 option::
 	Modify the behavior of the next command naming a <ref>.
