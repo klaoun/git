@@ -62,7 +62,7 @@ With `--stdin`, update-ref reads instructions from standard input and
 performs all modifications together.  Specify commands of the form:
 
 	update SP <ref> SP <new-oid> [SP <old-oid>] LF
-	create SP <ref> SP <new-oid> LF
+	create SP <ref> SP (<new-oid> | ref:<new-target>) LF
 	delete SP <ref> [SP (<old-oid> | ref:<old-target>)] LF
 	verify SP <ref> [SP (<old-oid> | ref:<old-target>)] LF
 	option SP <opt> LF
@@ -83,7 +83,7 @@ Alternatively, use `-z` to specify in NUL-terminated format, without
 quoting:
 
 	update SP <ref> NUL <new-oid> NUL [<old-oid>] NUL
-	create SP <ref> NUL <new-oid> NUL
+	create SP <ref> NUL (<new-oid> | ref:<new-target>) NUL
 	delete SP <ref> NUL [(<old-oid> | ref:<old-target>)] NUL
 	verify SP <ref> NUL [(<old-oid> | ref:<old-target>)] NUL
 	option SP <opt> NUL
@@ -113,7 +113,9 @@ update::
 
 create::
 	Create <ref> with <new-oid> after verifying it does not
-	exist.  The given <new-oid> may not be zero.
+	exist.  The given <new-oid> may not be zero.  If instead
+	ref:<new-target> is provided, a symbolic ref is created
+	which targets <new-target>.
 
 delete::
 	Delete <ref> after verifying it exists with <old-oid>, if given.

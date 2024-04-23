@@ -244,6 +244,7 @@ static void parse_cmd_create(struct ref_transaction *transaction,
 			     const char *next, const char *end)
 {
 	struct strbuf err = STRBUF_INIT;
+	struct strbuf new_target = STRBUF_INIT;
 	char *refname;
 	struct object_id new_oid;
 
@@ -251,16 +252,22 @@ static void parse_cmd_create(struct ref_transaction *transaction,
 	if (!refname)
 		die("create: missing <ref>");
 
-	if (parse_next_arg(&next, end, &new_oid, NULL, "create", refname, 0))
+	if (parse_next_arg(&next, end, &new_oid, &new_target,
+			   "create", refname, PARSE_REFNAME_TARGETS))
 		die("create %s: missing <new-oid>", refname);
 
-	if (is_null_oid(&new_oid))
+	if (!new_target.len && is_null_oid(&new_oid))
 		die("create %s: zero <new-oid>", refname);
+
+	if (new_target.len && !(update_flags & REF_NO_DEREF))
+		die("create %s: cannot create symrefs in deref mode", refname);
 
 	if (*next != line_termination)
 		die("create %s: extra input: %s", refname, next);
 
-	if (ref_transaction_create(transaction, refname, &new_oid,
+	if (ref_transaction_create(transaction, refname,
+				   new_target.len ? NULL : &new_oid ,
+				   new_target.len ? new_target.buf : NULL,
 				   update_flags | create_reflog_flag,
 				   msg, &err))
 		die("%s", err.buf);
@@ -268,6 +275,7 @@ static void parse_cmd_create(struct ref_transaction *transaction,
 	update_flags = default_flags;
 	free(refname);
 	strbuf_release(&err);
+	strbuf_release(&new_target);
 }
 
 static void parse_cmd_delete(struct ref_transaction *transaction,
