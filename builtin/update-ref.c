@@ -228,7 +228,7 @@ static void parse_cmd_update(struct ref_transaction *transaction,
 	have_old = !parse_next_arg(&next, end, &old_oid,
 				   &old_target, "update", refname,
 				   PARSE_SHA1_OLD | PARSE_REFNAME_TARGETS);
-	have_old = have_old & !old_target.len;
+	have_old = have_old && !old_target.len;
 
 	if (*next != line_termination)
 		die("update %s: extra input: %s", refname, next);
