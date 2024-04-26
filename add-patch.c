@@ -1668,7 +1668,7 @@ soft_increment:
 			}
 		} else if (s->answer.buf[0] == 'p') {
 			rendered_hunk_index = -1;
-		} else if (s->answer.buf[0] == '?') {
+		} else {
 			const char *p = _(help_patch_remainder), *eol = p;
 
 			color_fprintf(stdout, s->s.help_color, "%s",
@@ -1692,9 +1692,6 @@ soft_increment:
 				color_fprintf_ln(stdout, s->s.help_color,
 						 "%.*s", (int)(eol - p), p);
 			}
-		} else {
-			err(s, _("Unknown command '%s' (use '?' for help)"),
-			    s->answer.buf);
 		}
 	}
 
