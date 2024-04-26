@@ -61,10 +61,10 @@ still contains <old-oid>.
 With `--stdin`, update-ref reads instructions from standard input and
 performs all modifications together.  Specify commands of the form:
 
-	update SP <ref> SP <new-oid> [SP <old-oid>] LF
-	create SP <ref> SP <new-oid> LF
-	delete SP <ref> [SP <old-oid>] LF
-	verify SP <ref> [SP <old-oid>] LF
+	update SP <ref> SP (<new-oid> | ref:<new-target>) [SP (<old-oid> | ref:<old-target>)] LF
+	create SP <ref> SP (<new-oid> | ref:<new-target>) LF
+	delete SP <ref> [SP (<old-oid> | ref:<old-target>)] LF
+	verify SP <ref> [SP (<old-oid> | ref:<old-target>)] LF
 	option SP <opt> LF
 	start LF
 	prepare LF
@@ -82,10 +82,10 @@ specify a missing value, omit the value and its preceding SP entirely.
 Alternatively, use `-z` to specify in NUL-terminated format, without
 quoting:
 
-	update SP <ref> NUL <new-oid> NUL [<old-oid>] NUL
-	create SP <ref> NUL <new-oid> NUL
-	delete SP <ref> NUL [<old-oid>] NUL
-	verify SP <ref> NUL [<old-oid>] NUL
+	update SP <ref> NUL (<new-oid> | ref:<new-target>) NUL [(<old-oid> | ref:<old-target>)] NUL
+	create SP <ref> NUL (<new-oid> | ref:<new-target>) NUL
+	delete SP <ref> NUL [(<old-oid> | ref:<old-target>)] NUL
+	verify SP <ref> NUL [(<old-oid> | ref:<old-target>)] NUL
 	option SP <opt> NUL
 	start NUL
 	prepare NUL
@@ -95,6 +95,12 @@ quoting:
 In this format, use 40 "0" to specify a zero value, and use the empty
 string to specify a missing value.
 
+For commands which support it, substituting the <old-oid> value with
+ref:<old-target> will ensure that the <ref> targets the specified
+old-target before the update.  Similarly, substituting the <new-oid>
+with ref:<new-target> will ensure that the <ref> is a symbolic ref
+targeting the new-target after the update.
+
 In either format, values can be specified in any form that Git
 recognizes as an object name.  Commands in any other format or a
 repeated <ref> produce an error.  Command meanings are:
@@ -103,19 +109,28 @@ update::
 	Set <ref> to <new-oid> after verifying <old-oid>, if given.
 	Specify a zero <new-oid> to ensure the ref does not exist
 	after the update and/or a zero <old-oid> to make sure the
-	ref does not exist before the update.
+	ref does not exist before the update.  If ref:<old-target>
+	is provided, we verify that the <ref> is an existing symbolic
+	ref which targets <old-target>.  If ref:<new-target> is given,
+	the update ensures <ref> is a symbolic ref which targets
+	<new-target>.
 
 create::
 	Create <ref> with <new-oid> after verifying it does not
-	exist.  The given <new-oid> may not be zero.
+	exist.  The given <new-oid> may not be zero.  If instead
+	ref:<new-target> is provided, a symbolic ref is created
+	which targets <new-target>.
 
 delete::
-	Delete <ref> after verifying it exists with <old-oid>, if
-	given.  If given, <old-oid> may not be zero.
+	Delete <ref> after verifying it exists with <old-oid>, if given.
+	If given, <old-oid> may not be zero.  If instead, ref:<old-target>
+	is provided, verify that the symbolic ref <ref> targets
+	<old-target> before deleting it.
 
 verify::
 	Verify <ref> against <old-oid> but do not change it.  If
-	<old-oid> is zero or missing, the ref must not exist.
+	<old-oid> is zero or missing, the ref must not exist. For
+	verifying symbolic refs, provide ref:<old-target>.
 
 option::
 	Modify the behavior of the next command naming a <ref>.
